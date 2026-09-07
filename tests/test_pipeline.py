@@ -19,9 +19,9 @@ def test_validate_sql_rejects_mutation():
 
 
 def test_generate_sql_requires_api_key(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.setattr("llm.OPENAI_API_KEY", None)
-    with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setattr("llm.ANTHROPIC_API_KEY", None)
+    with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
         generate_sql("Show portfolio values", "Table: portfolio", "")
 
     # TODO: Mock successful generation and correction retries, including API errors,
