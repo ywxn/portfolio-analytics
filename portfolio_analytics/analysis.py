@@ -4,20 +4,17 @@ from typing import Any, Mapping
 
 import pandas as pd
 
-from portfolio_analytics.config import load_metadata
-from portfolio_analytics.database import execute_query, get_engine, load_excel_engine
-from portfolio_analytics.llm import generate_sql as package_generate_sql
-from portfolio_analytics.schema import get_schema
-from portfolio_analytics.validator import validate_sql
-
-
-def generate_sql(question: str, schema: str, metadata: str) -> str:
-    return package_generate_sql(question, schema, metadata)
+from .config import load_metadata
+from .database import execute_query, get_engine, load_excel_engine
+from .llm import generate_sql
+from .schema import get_schema
+from .validator import validate_sql
 
 
 def _serialize_schema(schema: Mapping[str, Any] | None) -> str:
     if not schema:
         return ""
+
     lines: list[str] = []
     for table_name, table_schema in schema.items():
         if isinstance(table_schema, Mapping):
@@ -26,6 +23,7 @@ def _serialize_schema(schema: Mapping[str, Any] | None) -> str:
         else:
             columns = []
             foreign_keys = []
+
         lines.append(f"Table: {table_name}")
         lines.append(f"  Columns: {', '.join(columns)}")
         if foreign_keys:
@@ -44,6 +42,7 @@ def _serialize_metadata(metadata: Mapping[str, Any] | None) -> str:
 def _finalize_output(df: pd.DataFrame, question: str) -> pd.DataFrame:
     if df.empty:
         return df
+
     lowered = question.lower()
     if "pivot" in lowered or "by" in lowered or "group" in lowered:
         return df.copy()
@@ -59,6 +58,7 @@ def blog_query(
     database_url: str | None = None,
     excel_path: str | None = None,
 ) -> dict[str, Any]:
+    """Generate SQL and execute it, returning both the generated SQL and the output dataframe."""
     if not question or not question.strip():
         raise ValueError("A natural-language question is required.")
 
@@ -67,6 +67,7 @@ def blog_query(
         if excel_path or not database_url
         else get_engine(database_url)
     )
+
     resolved_schema = get_schema(engine) if schema is None else schema
     resolved_schema = resolved_schema or {}
     resolved_metadata = metadata or load_metadata()
@@ -75,6 +76,7 @@ def blog_query(
     metadata_text = _serialize_metadata(resolved_metadata)
     sql = generate_sql(question, schema_text, metadata_text)
     validate_sql(sql)
+
     df = execute_query(sql, engine)
     return {"sql": sql, "data": _finalize_output(df, question)}
 
@@ -86,6 +88,7 @@ def run_pipeline(
     database_url: str | None = None,
     excel_path: str | None = None,
 ) -> pd.DataFrame:
+    """Run the full NLP-to-SQL-to-output flow and return the dataframe."""
     return blog_query(
         question,
         schema=schema,
@@ -95,4 +98,4 @@ def run_pipeline(
     )["data"]
 
 
-__all__ = ["blog_query", "run_pipeline", "generate_sql"]
+__all__ = ["blog_query", "run_pipeline"]

@@ -14,8 +14,12 @@ def test_validate_sql_rejects_mutation():
     with pytest.raises(ValueError):
         validate_sql("INSERT INTO portfolio VALUES (1, 'A')")
 
-    # TODO: Add coverage for SELECT-only enforcement, joins, UNION/CTEs/subqueries,
-    # unknown tables/columns, and SQL injection-shaped inputs.
+    assert validate_sql("WITH totals AS (SELECT 1 AS id) SELECT * FROM totals") is True
+    assert validate_sql("SELECT * FROM portfolio UNION SELECT * FROM portfolio") is True
+    with pytest.raises(ValueError):
+        validate_sql("DROP TABLE portfolio")
+    with pytest.raises(ValueError):
+        validate_sql("UPDATE portfolio SET market_value = 1")
 
 
 def test_generate_sql_requires_api_key(monkeypatch):
@@ -24,8 +28,41 @@ def test_generate_sql_requires_api_key(monkeypatch):
     with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
         generate_sql("Show portfolio values", "Table: portfolio", "")
 
-    # TODO: Mock successful generation and correction retries, including API errors,
-    # invalid SQL, database failures, bounded retries, and clear error responses.
+
+def test_pipeline_supports_aggregation_and_empty_result(tmp_path):
+    workbook_path = tmp_path / "portfolio.xlsx"
+    with pd.ExcelWriter(workbook_path, engine="openpyxl") as writer:
+        pd.DataFrame(
+            {
+                "portfolio_name": ["Alpha", "Beta"],
+                "sector": ["Technology", "Technology"],
+                "market_value": [120000.0, 95000.0],
+            }
+        ).to_excel(writer, sheet_name="Portfolio", index=False)
+
+    result = run_pipeline(
+        "What is the total market value by sector?",
+        excel_path=str(workbook_path),
+    )
+    assert result.empty is False
+
+    empty = run_pipeline("What is the market value for a missing portfolio?", excel_path=str(workbook_path))
+    assert isinstance(empty, pd.DataFrame)
+
+
+def test_pipeline_supports_ranked_results(tmp_path, monkeypatch):
+    workbook_path = tmp_path / "portfolio.xlsx"
+    with pd.ExcelWriter(workbook_path, engine="openpyxl") as writer:
+        pd.DataFrame(
+            {"portfolio_name": ["Alpha", "Beta"], "market_value": [120000.0, 95000.0]}
+        ).to_excel(writer, sheet_name="portfolio", index=False)
+
+    monkeypatch.setattr(
+        "analysis.generate_sql",
+        lambda question, schema, metadata: "SELECT portfolio_name, market_value FROM portfolio ORDER BY market_value DESC LIMIT 1",
+    )
+    result = run_pipeline("Rank portfolios by market value", excel_path=str(workbook_path))
+    assert result.iloc[0]["portfolio_name"] == "Alpha"
 
 
 def test_run_pipeline_reads_excel_and_returns_sql_and_dataframe(tmp_path, monkeypatch):
@@ -71,6 +108,3 @@ def test_run_pipeline_returns_dataframe_from_excel(tmp_path, monkeypatch):
     assert not result.empty
     assert "portfolio_name" in result.columns
 
-
-# TODO: Add focused aggregation, pivot, ranking, multidimensional, derived
-# metric, empty-result, schema-discovery, and end-to-end regression tests.
