@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 
 import pandas as pd
 
@@ -31,13 +31,13 @@ class AnalysisEngine:
     def plan(self, question: str, columns: list[str]) -> AnalysisPlan:
         raw_plan = llm.generate_analysis_plan(question, columns, str(self.metadata))
         plan = AnalysisPlan(
-            dimensions=list(raw_plan.get("dimensions", [])),
-            metric=raw_plan.get("metric"),
-            aggregation=raw_plan.get("aggregation", "sum"),
-            pivot_index=list(raw_plan.get("pivot_index", [])),
-            pivot_columns=list(raw_plan.get("pivot_columns", [])),
-            limit=raw_plan.get("limit"),
-            filters=dict(raw_plan.get("filters", {})),
+            dimensions=list(cast(list[str], raw_plan.get("dimensions", []))),
+            metric=cast(str | None, raw_plan.get("metric")),
+            aggregation=cast(str, raw_plan.get("aggregation", "sum")),
+            pivot_index=list(cast(list[str], raw_plan.get("pivot_index", []))),
+            pivot_columns=list(cast(list[str], raw_plan.get("pivot_columns", []))),
+            limit=cast(int | None, raw_plan.get("limit")),
+            filters=dict(cast(dict[str, Any], raw_plan.get("filters", {}))),
         )
         unknown = [
             column
