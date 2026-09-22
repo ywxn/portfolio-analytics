@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from config import load_metadata as _load_metadata
+from .config import load_metadata as _load_metadata
 
 
 def load_metadata(path: str | None = None) -> dict[str, Any]:

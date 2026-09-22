@@ -5,14 +5,13 @@ from typing import Any, Mapping
 
 import pandas as pd
 
-from config import load_metadata
-from database import execute_query, get_engine, load_excel_engine
-from schema import get_schema
-from validator import validate_sql
-
 from . import llm as llm_module
 from .analysis_engine import AnalysisEngine, AnalysisPlan
+from .config import load_metadata
+from .database import execute_query, get_engine, load_excel_engine
 from .results import AnalysisResult
+from .schema import get_schema
+from .validator import validate_sql
 
 
 def _infer_dimensions(question: str) -> list[str]:

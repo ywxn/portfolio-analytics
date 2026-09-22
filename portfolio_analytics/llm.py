@@ -1,10 +1,14 @@
 ﻿from __future__ import annotations
 
+import json
 import os
 import re
-import json
+from typing import Any
 
-from anthropic import Anthropic
+try:
+    from anthropic import Anthropic
+except ModuleNotFoundError:  # pragma: no cover - optional dependency path
+    Anthropic = None  # type: ignore[assignment]
 
 from .config import ANTHROPIC_API_KEY, ANTHROPIC_MODEL, DEFAULT_MAX_TOKENS
 from .prompts import SQL_GENERATION_PROMPT
@@ -54,6 +58,21 @@ Do not rely on this prompt as the application's security boundary.
 """.strip()
 
 
+def _get_api_key() -> str:
+    api_key = ANTHROPIC_API_KEY or os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY is required for SQL generation.")
+    return api_key
+
+
+def _get_client() -> Any:
+    if Anthropic is None:
+        raise RuntimeError(
+            "The 'anthropic' package is not installed. Install the project dependencies before using LLM features."
+        )
+    return Anthropic(api_key=_get_api_key())
+
+
 def _clean_sql(text: str) -> str:
     """Clean common formatting artifacts from an LLM SQL response."""
     sql = text.strip()
@@ -67,8 +86,21 @@ def _clean_sql(text: str) -> str:
     return sql
 
 
+def _collect_text_blocks(response: Any) -> list[str]:
+    blocks: list[str] = []
+    content = getattr(response, "content", []) or []
+    for block in content:
+        if isinstance(block, dict):
+            text = block.get("text")
+        else:
+            text = getattr(block, "text", None)
+        if isinstance(text, str):
+            blocks.append(text)
+    return blocks
+
+
 def _parse_analysis_plan(text: str) -> dict[str, object]:
-    """Parse JSON plans even when the model adds a JSON fence or short prose."""
+    """Parse JSON plans even when the model adds a JSON fence or a short intro."""
     content = text.strip()
     fenced = re.fullmatch(
         r"```(?:json)?\s*(.*?)\s*```",
@@ -99,10 +131,6 @@ def generate_sql(question: str, schema: str, metadata: str) -> str:
     if not schema or not schema.strip():
         raise ValueError("Schema information is required to generate SQL.")
 
-    api_key = ANTHROPIC_API_KEY or os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY is required for SQL generation.")
-
     prompt_text = SQL_GENERATION_PROMPT.format(
         schema=schema.strip(),
         metadata=(metadata or "").strip(),
@@ -110,7 +138,7 @@ def generate_sql(question: str, schema: str, metadata: str) -> str:
     )
 
     try:
-        client = Anthropic(api_key=api_key)
+        client = _get_client()
         response = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=DEFAULT_MAX_TOKENS,
@@ -120,15 +148,11 @@ def generate_sql(question: str, schema: str, metadata: str) -> str:
     except Exception as error:
         raise RuntimeError(f"Anthropic SQL generation failed: {error}") from error
 
-    parts: list[str] = []
-    for block in getattr(response, "content", []) or []:
-        text = getattr(block, "text", None)
-        if text:
-            parts.append(text)
-
-    sql = _clean_sql("".join(parts))
+    sql = _clean_sql("".join(_collect_text_blocks(response)))
     if not sql:
         raise RuntimeError("Anthropic returned an empty SQL query.")
+    if not sql.lower().lstrip().startswith(("select", "with")):
+        raise RuntimeError("Anthropic returned a non-query response instead of SQL.")
     return sql
 
 
@@ -156,21 +180,24 @@ def generate_analysis_plan(question: str, columns: list[str], metadata: str = ""
     if not columns:
         raise ValueError("At least one selected column is required for analysis.")
 
-    api_key = ANTHROPIC_API_KEY or os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY is required for analysis planning.")
-
     try:
-        client = Anthropic(api_key=api_key)
+        client = _get_client()
         response = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=DEFAULT_MAX_TOKENS,
             system="Return only valid JSON for the requested analysis plan.",
-            messages=[{"role": "user", "content": ANALYSIS_PLAN_PROMPT.format(
-                columns=", ".join(columns), metadata=metadata, question=question
-            )}],
+            messages=[
+                {
+                    "role": "user",
+                    "content": ANALYSIS_PLAN_PROMPT.format(
+                        columns=", ".join(columns),
+                        metadata=metadata,
+                        question=question,
+                    ),
+                }
+            ],
         )
-        content = "".join(getattr(block, "text", "") for block in getattr(response, "content", []) or [])
+        content = "".join(_collect_text_blocks(response))
         return _parse_analysis_plan(content)
     except Exception as error:
         raise RuntimeError(f"Analysis planning failed: {error}") from error
