@@ -1,5 +1,9 @@
 """Reusable dataframe aggregation helpers for portfolio analytics questions."""
 
+# TODO: Add more sophisticated aggregation functions and validation logic.
+#       Additionally, adding support for LLM generated Python code, though for this
+#       we'll need to expand the planning stage.
+
 from __future__ import annotations
 
 import pandas as pd
@@ -8,7 +12,6 @@ from typing import Literal, cast
 Aggregation = Literal[
     "sum", "prod", "mean", "median", "min", "max", "count", "std", "var", "size"
 ]
-
 
 SUPPORTED_AGGREGATIONS = {
     "sum",
