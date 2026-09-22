@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 import pandas as pd
-from typing import Literal
+from typing import Literal, cast
+
+
+Aggregation = Literal[
+    "sum", "prod", "mean", "median", "min", "max", "count", "std", "var", "size"
+]
 
 
 SUPPORTED_AGGREGATIONS = {
@@ -23,9 +28,7 @@ def pivot(
     index: str | list[str] | None = None,
     columns: str | list[str] | None = None,
     values: str | list[str] | None = None,
-    aggfunc: Literal[
-        "sum", "prod", "mean", "median", "min", "max", "count", "std", "var", "size"
-    ] = "sum",
+    aggfunc: Aggregation = "sum",
 ) -> pd.DataFrame:
     if df.empty:
         return df.copy()
@@ -85,7 +88,7 @@ def analyze_dataframe(
                 index=pivot_index or dimensions,
                 columns=pivot_columns,
                 values=metric,
-                aggfunc=aggregation,
+                aggfunc=cast(Aggregation, aggregation),
             ).reset_index()
         else:
             result = summarize_by(result, dimensions, metric, aggregation)

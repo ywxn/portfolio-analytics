@@ -27,6 +27,7 @@ def load_excel_engine(excel_path: str | None = None) -> Engine:
         raise ValueError(f"Excel workbook contains no sheets: {path}")
 
     engine = create_engine("sqlite:///:memory:", future=True)
+    portfolio_frames: list[pd.DataFrame] = []
     for sheet_name in workbook.sheet_names:
         table_name = str(sheet_name).strip().lower().replace(" ", "_")
         frame = pd.read_excel(workbook, sheet_name=sheet_name)
@@ -36,6 +37,15 @@ def load_excel_engine(excel_path: str | None = None) -> Engine:
         if frame.empty and len(frame.columns) == 0:
             continue
         frame.to_sql(table_name, engine, index=False, if_exists="replace")
+        portfolio_frame = frame.copy()
+        if "portfolio_name" not in portfolio_frame.columns:
+            portfolio_frame.insert(0, "portfolio_name", str(sheet_name).strip())
+        portfolio_frames.append(portfolio_frame)
+
+    if portfolio_frames:
+        pd.concat(portfolio_frames, ignore_index=True, sort=False).to_sql(
+            "portfolio", engine, index=False, if_exists="replace"
+        )
     return engine
 
 

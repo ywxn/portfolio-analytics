@@ -29,7 +29,7 @@ def test_generate_sql_requires_api_key(monkeypatch):
         generate_sql("Show portfolio values", "Table: portfolio", "")
 
 
-def test_pipeline_supports_aggregation_and_empty_result(tmp_path):
+def test_pipeline_supports_aggregation_and_empty_result(tmp_path, monkeypatch):
     workbook_path = tmp_path / "portfolio.xlsx"
     with pd.ExcelWriter(workbook_path, engine="openpyxl") as writer:
         pd.DataFrame(
@@ -39,6 +39,13 @@ def test_pipeline_supports_aggregation_and_empty_result(tmp_path):
                 "market_value": [120000.0, 95000.0],
             }
         ).to_excel(writer, sheet_name="Portfolio", index=False)
+
+    def fake_generate_sql(question, schema, metadata):
+        if "missing" in question.lower():
+            return "SELECT portfolio_name, market_value FROM portfolio WHERE portfolio_name = 'Missing'"
+        return "SELECT sector, SUM(market_value) AS total_market_value FROM portfolio GROUP BY sector"
+
+    monkeypatch.setattr("analysis.generate_sql", fake_generate_sql)
 
     result = run_pipeline(
         "What is the total market value by sector?",

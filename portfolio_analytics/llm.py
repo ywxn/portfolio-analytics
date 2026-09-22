@@ -67,22 +67,28 @@ def _clean_sql(text: str) -> str:
     return sql
 
 
-def _fallback_sql(question: str) -> str:
-    """Provide a safe, deterministic SQL fallback for common portfolio queries when no LLM key is configured."""
-    lowered = (question or "").lower()
+def _parse_analysis_plan(text: str) -> dict[str, object]:
+    """Parse JSON plans even when the model adds a JSON fence or short prose."""
+    content = text.strip()
+    fenced = re.fullmatch(
+        r"```(?:json)?\s*(.*?)\s*```",
+        content,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if fenced:
+        content = fenced.group(1).strip()
 
-    if "sector" in lowered and ("total" in lowered or "sum" in lowered or "market value" in lowered):
-        return "SELECT sector, SUM(market_value) AS total_market_value FROM portfolio GROUP BY sector ORDER BY total_market_value DESC"
-    if "rank" in lowered or "top" in lowered or "highest" in lowered or "lowest" in lowered:
-        order = "DESC" if "top" in lowered or "highest" in lowered or "rank" in lowered else "ASC"
-        return f"SELECT portfolio_name, market_value FROM portfolio ORDER BY market_value {order} LIMIT 10"
-    if "count" in lowered or "number" in lowered:
-        return "SELECT COUNT(*) AS total_holdings FROM portfolio"
-    if "portfolio" in lowered and ("total" in lowered or "sum" in lowered or "market value" in lowered):
-        return "SELECT portfolio_name, market_value FROM portfolio ORDER BY market_value DESC"
-    if "by" in lowered and "sector" in lowered:
-        return "SELECT sector, SUM(market_value) AS total_market_value FROM portfolio GROUP BY sector ORDER BY total_market_value DESC"
-    return "SELECT * FROM portfolio LIMIT 50"
+    try:
+        plan = json.loads(content)
+    except json.JSONDecodeError:
+        object_start = content.find("{")
+        if object_start < 0:
+            raise
+        plan, _ = json.JSONDecoder().raw_decode(content[object_start:])
+
+    if not isinstance(plan, dict):
+        raise ValueError("Analysis plan must be a JSON object.")
+    return plan
 
 
 def generate_sql(question: str, schema: str, metadata: str) -> str:
@@ -95,7 +101,7 @@ def generate_sql(question: str, schema: str, metadata: str) -> str:
 
     api_key = ANTHROPIC_API_KEY or os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        return _fallback_sql(cleaned_question)
+        raise RuntimeError("ANTHROPIC_API_KEY is required for SQL generation.")
 
     prompt_text = SQL_GENERATION_PROMPT.format(
         schema=schema.strip(),
@@ -143,54 +149,8 @@ Question:
 """.strip()
 
 
-def _fallback_analysis_plan(question: str, columns: list[str]) -> dict[str, Any]:
-    lowered = question.lower()
-    metric_names = {
-        "market_value",
-        "bal_purchase_value",
-        "purchase_value",
-        "face_value",
-        "bal_face_val",
-        "ytm",
-    }
-    dimensions = [
-        column
-        for column in columns
-        if column in lowered and column not in metric_names
-    ]
-    metric = next(
-        (
-            column
-            for column in (
-                "market_value",
-                "bal_purchase_value",
-                "purchase_value",
-                "face_value",
-                "bal_face_val",
-                "ytm",
-            )
-            if column in columns
-        ),
-        None,
-    )
-    aggregation = "mean" if "average" in lowered or "mean" in lowered else "sum"
-    if "count" in lowered or "number of" in lowered:
-        metric, aggregation = None, "size"
-    pivot_index = dimensions[:1] if "pivot" in lowered else []
-    pivot_columns = dimensions[1:2] if "pivot" in lowered else []
-    return {
-        "dimensions": dimensions,
-        "metric": metric,
-        "aggregation": aggregation,
-        "pivot_index": pivot_index,
-        "pivot_columns": pivot_columns,
-        "limit": None,
-        "filters": {},
-    }
-
-
-def generate_analysis_plan(question: str, columns: list[str], metadata: str = "") -> dict[str, Any]:
-    """Generate a JSON analysis plan, with a deterministic offline fallback."""
+def generate_analysis_plan(question: str, columns: list[str], metadata: str = "") -> dict[str, object]:
+    """Generate a JSON analysis plan through the Anthropic API."""
     if not question or not question.strip():
         raise ValueError("A question is required to plan an analysis.")
     if not columns:
@@ -198,7 +158,7 @@ def generate_analysis_plan(question: str, columns: list[str], metadata: str = ""
 
     api_key = ANTHROPIC_API_KEY or os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        return _fallback_analysis_plan(question, columns)
+        raise RuntimeError("ANTHROPIC_API_KEY is required for analysis planning.")
 
     try:
         client = Anthropic(api_key=api_key)
@@ -211,10 +171,7 @@ def generate_analysis_plan(question: str, columns: list[str], metadata: str = ""
             )}],
         )
         content = "".join(getattr(block, "text", "") for block in getattr(response, "content", []) or [])
-        plan = json.loads(_clean_sql(content))
-        if not isinstance(plan, dict):
-            raise ValueError("Analysis plan must be a JSON object.")
-        return plan
+        return _parse_analysis_plan(content)
     except Exception as error:
         raise RuntimeError(f"Analysis planning failed: {error}") from error
 
