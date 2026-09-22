@@ -23,4 +23,9 @@ def test_validate_sql_rejects_multiple_statements_when_any_is_destructive():
 
 
 def test_validate_sql_accepts_read_only_ctes_and_unions():
-    assert validate_sql("WITH totals AS (SELECT market_value FROM portfolio) SELECT * FROM totals UNION SELECT * FROM totals") is True
+    assert (
+        validate_sql(
+            "WITH totals AS (SELECT market_value FROM portfolio) SELECT * FROM totals UNION SELECT * FROM totals"
+        )
+        is True
+    )

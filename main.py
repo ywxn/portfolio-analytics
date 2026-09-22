@@ -48,7 +48,9 @@ def _parse_filters(raw_filters: list[str]) -> dict[str, Any]:
         column = column.strip()
         value = value.strip()
         if not column or not value:
-            raise ValueError(f"Filter must include both a column and value: {expression}")
+            raise ValueError(
+                f"Filter must include both a column and value: {expression}"
+            )
         filters[column] = value
     return filters
 
@@ -56,7 +58,11 @@ def _parse_filters(raw_filters: list[str]) -> dict[str, Any]:
 def preview(analyzer: PortfolioAnalyzer, args: argparse.Namespace) -> None:
     if not args.table:
         raise ValueError("--table is required with --preview.")
-    columns = [column.strip() for column in args.columns.split(",") if column.strip()] if args.columns else None
+    columns = (
+        [column.strip() for column in args.columns.split(",") if column.strip()]
+        if args.columns
+        else None
+    )
     filters = _parse_filters(args.where)
     selected = analyzer.select_data(args.table, columns=columns, filters=filters)
     question = " ".join(args.question).strip()

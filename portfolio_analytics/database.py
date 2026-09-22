@@ -12,7 +12,9 @@ def get_engine(database_url: str | None = None) -> Engine:
     """Create a database engine for the configured database or Excel-derived SQLite database."""
     url = database_url or DEFAULT_DATABASE_URL
     if not url:
-        raise ValueError("Set PORTFOLIO_EXCEL_PATH or PORTFOLIO_DB_URL before running a query.")
+        raise ValueError(
+            "Set PORTFOLIO_EXCEL_PATH or PORTFOLIO_DB_URL before running a query."
+        )
     return create_engine(url, future=True)
 
 

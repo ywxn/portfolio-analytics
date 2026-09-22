@@ -14,7 +14,9 @@ def get_schema(engine) -> dict[str, dict[str, Any]]:
         schema[table] = {
             "columns": [column["name"] for column in columns],
             "column_types": {column["name"]: str(column["type"]) for column in columns},
-            "primary_keys": inspector.get_pk_constraint(table).get("constrained_columns", []),
+            "primary_keys": inspector.get_pk_constraint(table).get(
+                "constrained_columns", []
+            ),
             "foreign_keys": inspector.get_foreign_keys(table),
         }
     return schema

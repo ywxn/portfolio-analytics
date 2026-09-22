@@ -161,19 +161,27 @@ class PortfolioAnalyzer:
 
         available_columns = list(table_schema.get("columns", []))
         selected_columns = columns or available_columns
-        unknown_columns = [column for column in selected_columns if column not in available_columns]
+        unknown_columns = [
+            column for column in selected_columns if column not in available_columns
+        ]
         if unknown_columns:
-            raise ValueError(f"Unknown columns for {table}: {', '.join(unknown_columns)}")
+            raise ValueError(
+                f"Unknown columns for {table}: {', '.join(unknown_columns)}"
+            )
 
         quoted_table = '"' + table.replace('"', '""') + '"'
-        quoted_columns = ", ".join('"' + column.replace('"', '""') + '"' for column in selected_columns)
+        quoted_columns = ", ".join(
+            '"' + column.replace('"', '""') + '"' for column in selected_columns
+        )
         params: dict[str, Any] = {}
         predicates: list[str] = []
         for index, (column, value) in enumerate((filters or {}).items()):
             if column not in available_columns:
                 raise ValueError(f"Unknown filter column for {table}: {column}")
             parameter = f"filter_{index}"
-            predicates.append(f'"{column.replace(chr(34), chr(34) * 2)}" = :{parameter}')
+            predicates.append(
+                f'"{column.replace(chr(34), chr(34) * 2)}" = :{parameter}'
+            )
             params[parameter] = value
 
         sql = f"SELECT {quoted_columns} FROM {quoted_table}"

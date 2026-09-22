@@ -35,10 +35,14 @@ def validate_sql(sql: str) -> bool:
 
     for statement in statements:
         if not isinstance(statement, (exp.Select, exp.Union, exp.With, exp.Subquery)):
-            raise ValueError(f"Unsupported SQL statement type: {type(statement).__name__}")
+            raise ValueError(
+                f"Unsupported SQL statement type: {type(statement).__name__}"
+            )
         for node in statement.walk():
             if isinstance(node, forbidden):
-                raise ValueError(f"Forbidden SQL operation detected: {type(node).__name__}")
+                raise ValueError(
+                    f"Forbidden SQL operation detected: {type(node).__name__}"
+                )
 
     return True
 

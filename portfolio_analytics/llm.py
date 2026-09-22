@@ -173,7 +173,9 @@ Question:
 """.strip()
 
 
-def generate_analysis_plan(question: str, columns: list[str], metadata: str = "") -> dict[str, object]:
+def generate_analysis_plan(
+    question: str, columns: list[str], metadata: str = ""
+) -> dict[str, object]:
     """Generate a JSON analysis plan through the Anthropic API."""
     if not question or not question.strip():
         raise ValueError("A question is required to plan an analysis.")

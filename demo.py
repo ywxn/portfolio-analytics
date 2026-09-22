@@ -26,10 +26,16 @@ def aggregate_dataframe(
     unknown = [column for column in group_columns if column not in df.columns]
     if unknown:
         raise ValueError(f"Unknown group columns: {', '.join(unknown)}")
-    return df.groupby(group_columns, dropna=False, sort=False)[metric].agg(aggfunc).reset_index()
+    return (
+        df.groupby(group_columns, dropna=False, sort=False)[metric]
+        .agg(aggfunc)
+        .reset_index()
+    )
 
 
-def sort_dataframe(df: pd.DataFrame, column: str, ascending: bool = False) -> pd.DataFrame:
+def sort_dataframe(
+    df: pd.DataFrame, column: str, ascending: bool = False
+) -> pd.DataFrame:
     """Sort a dataframe by a single column."""
     if column not in df.columns:
         raise ValueError(f"Unknown sort column: {column}")
@@ -99,10 +105,16 @@ def run_dataframe_operations(
                 group_input = input(
                     "Group by columns (comma-separated, or press Enter for no group): "
                 ).strip()
-                group_columns = [column.strip() for column in group_input.split(",") if column.strip()] or None
+                group_columns = [
+                    column.strip()
+                    for column in group_input.split(",")
+                    if column.strip()
+                ] or None
                 metric = input("Metric column to aggregate: ").strip()
                 aggfunc = input("Aggregation function [sum]: ").strip() or "sum"
-                current = aggregate_dataframe(current, by=group_columns, metric=metric, aggfunc=aggfunc)
+                current = aggregate_dataframe(
+                    current, by=group_columns, metric=metric, aggfunc=aggfunc
+                )
                 print("\nAggregated data:")
                 print(current.to_string(index=False))
             elif choice == "2":
@@ -118,7 +130,9 @@ def run_dataframe_operations(
                 print(current.to_string(index=False))
             elif choice == "4":
                 if analyzer is None:
-                    raise ValueError("AI analysis requires a PortfolioAnalyzer instance.")
+                    raise ValueError(
+                        "AI analysis requires a PortfolioAnalyzer instance."
+                    )
                 question = input("Analysis question: ").strip()
                 if not question:
                     raise ValueError("An analysis question is required.")
@@ -147,9 +161,11 @@ def _run_query(analyzer: PortfolioAnalyzer) -> None:
     print(result.data.to_string(index=False))
 
     while True:
-        analyze_results = input(
-            "\nApply dataframe operations to these results? [y/N]: "
-        ).strip().lower()
+        analyze_results = (
+            input("\nApply dataframe operations to these results? [y/N]: ")
+            .strip()
+            .lower()
+        )
         if analyze_results in {"y", "yes"}:
             result.data = run_dataframe_operations(analyzer, result.data)
             print("\nCurrent data after operations:")
@@ -160,18 +176,21 @@ def _run_query(analyzer: PortfolioAnalyzer) -> None:
         print("Please enter y, yes, n, or no.")
 
     while True:
-        analyze_results = input(
-            "\nRun AI analysis on these results? [y/N]: "
-        ).strip().lower()
+        analyze_results = (
+            input("\nRun AI analysis on these results? [y/N]: ").strip().lower()
+        )
         if analyze_results in {"y", "yes"}:
             break
         if analyze_results in {"n", "no"}:
             return
         print("Please enter y, yes, n, or no.")
 
-    analysis_question = input(
-        "Analysis question (press Enter to reuse the original question): "
-    ).strip() or question
+    analysis_question = (
+        input(
+            "Analysis question (press Enter to reuse the original question): "
+        ).strip()
+        or question
+    )
     analyzed, plan = analyzer.analyze(analysis_question, result.data)
     print("\nAnalysis plan:")
     print(plan)
@@ -185,9 +204,7 @@ def _run_analysis(analyzer: PortfolioAnalyzer) -> None:
     if table not in tables:
         raise ValueError(f"Unknown table: {table}")
 
-    raw_columns = input(
-        "Columns (comma-separated, or press Enter for all): "
-    ).strip()
+    raw_columns = input("Columns (comma-separated, or press Enter for all): ").strip()
     columns = [column.strip() for column in raw_columns.split(",") if column.strip()]
     filters = _prompt_filters()
     selected = analyzer.select_data(table, columns=columns or None, filters=filters)
@@ -206,7 +223,9 @@ def main() -> None:
 
     while True:
         print("\nChoose an operation:")
-        print("  1. Ask a natural-language question, then optionally analyze the results")
+        print(
+            "  1. Ask a natural-language question, then optionally analyze the results"
+        )
         print("  2. Select data and run multidimensional analysis")
         print("  3. List tables and columns")
         print("  q. Quit")

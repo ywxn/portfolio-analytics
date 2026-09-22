@@ -35,7 +35,11 @@ def load_metadata(path: str | Path | None = None) -> dict[str, Any]:
 
 
 def get_anthropic_api_key() -> str | None:
-    return ANTHROPIC_API_KEY or os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY")
+    return (
+        ANTHROPIC_API_KEY
+        or os.getenv("ANTHROPIC_API_KEY")
+        or os.getenv("OPENAI_API_KEY")
+    )
 
 
 def get_database_url() -> str:

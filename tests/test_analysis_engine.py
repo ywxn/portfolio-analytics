@@ -24,7 +24,9 @@ def test_analysis_engine_supports_multidimensional_breakdown(monkeypatch):
         }
     )
 
-    result, plan = AnalysisEngine().run(data, "Show market value by sector and geography")
+    result, plan = AnalysisEngine().run(
+        data, "Show market value by sector and geography"
+    )
 
     assert plan.dimensions == ["sector", "geography"]
     assert result["market_value"].sum() == 350

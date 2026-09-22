@@ -41,11 +41,18 @@ class AnalysisEngine:
         )
         unknown = [
             column
-            for column in [*plan.dimensions, plan.metric, *plan.pivot_index, *plan.pivot_columns]
+            for column in [
+                *plan.dimensions,
+                plan.metric,
+                *plan.pivot_index,
+                *plan.pivot_columns,
+            ]
             if column and column not in columns
         ]
         if unknown:
-            raise ValueError(f"Analysis plan references unavailable columns: {', '.join(unknown)}")
+            raise ValueError(
+                f"Analysis plan references unavailable columns: {', '.join(unknown)}"
+            )
         if plan.aggregation not in SUPPORTED_AGGREGATIONS:
             raise ValueError(f"Unsupported aggregation: {plan.aggregation}")
         return plan
@@ -60,15 +67,18 @@ class AnalysisEngine:
                 selected = selected[selected[column].isin(expected)]
             else:
                 selected = selected[selected[column] == expected]
-        return analyze_dataframe(
-            selected,
-            dimensions=plan.dimensions,
-            metric=plan.metric,
-            aggregation=plan.aggregation,
-            pivot_index=plan.pivot_index,
-            pivot_columns=plan.pivot_columns,
-            limit=plan.limit,
-        ), plan
+        return (
+            analyze_dataframe(
+                selected,
+                dimensions=plan.dimensions,
+                metric=plan.metric,
+                aggregation=plan.aggregation,
+                pivot_index=plan.pivot_index,
+                pivot_columns=plan.pivot_columns,
+                limit=plan.limit,
+            ),
+            plan,
+        )
 
 
 __all__ = ["AnalysisEngine", "AnalysisPlan"]

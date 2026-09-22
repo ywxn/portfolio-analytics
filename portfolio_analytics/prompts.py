@@ -1,4 +1,4 @@
-﻿SQL_GENERATION_PROMPT = '''
+﻿SQL_GENERATION_PROMPT = """
 You are a portfolio analytics SQL generation assistant.
 
 Your task is to turn a natural-language question into a single PostgreSQL SELECT statement.
@@ -20,9 +20,9 @@ Business metadata:
 
 Question:
 {question}
-'''.strip()
+""".strip()
 
-SQL_CORRECTION_PROMPT = '''
+SQL_CORRECTION_PROMPT = """
 The previous SQL failed validation or execution. Please fix it to satisfy the database schema,
 read-only constraints, and the original user question.
 
@@ -39,4 +39,4 @@ Metadata:
 
 Error details:
 {error}
-'''.strip()
+""".strip()

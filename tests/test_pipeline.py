@@ -53,7 +53,10 @@ def test_pipeline_supports_aggregation_and_empty_result(tmp_path, monkeypatch):
     )
     assert result.empty is False
 
-    empty = run_pipeline("What is the market value for a missing portfolio?", excel_path=str(workbook_path))
+    empty = run_pipeline(
+        "What is the market value for a missing portfolio?",
+        excel_path=str(workbook_path),
+    )
     assert isinstance(empty, pd.DataFrame)
 
 
@@ -68,7 +71,9 @@ def test_pipeline_supports_ranked_results(tmp_path, monkeypatch):
         "analysis.generate_sql",
         lambda question, schema, metadata: "SELECT portfolio_name, market_value FROM portfolio ORDER BY market_value DESC LIMIT 1",
     )
-    result = run_pipeline("Rank portfolios by market value", excel_path=str(workbook_path))
+    result = run_pipeline(
+        "Rank portfolios by market value", excel_path=str(workbook_path)
+    )
     assert result.iloc[0]["portfolio_name"] == "Alpha"
 
 
@@ -114,4 +119,3 @@ def test_run_pipeline_returns_dataframe_from_excel(tmp_path, monkeypatch):
     assert isinstance(result, pd.DataFrame)
     assert not result.empty
     assert "portfolio_name" in result.columns
-

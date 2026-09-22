@@ -3,7 +3,6 @@ from __future__ import annotations
 import pandas as pd
 from typing import Literal, cast
 
-
 Aggregation = Literal[
     "sum", "prod", "mean", "median", "min", "max", "count", "std", "var", "size"
 ]
@@ -74,9 +73,15 @@ def analyze_dataframe(
         return df.copy()
 
     dimensions = dimensions or []
-    missing = [column for column in [*dimensions, metric] if column and column not in df.columns]
+    missing = [
+        column
+        for column in [*dimensions, metric]
+        if column and column not in df.columns
+    ]
     if missing:
-        raise ValueError(f"Analysis columns are not present in the selected data: {', '.join(missing)}")
+        raise ValueError(
+            f"Analysis columns are not present in the selected data: {', '.join(missing)}"
+        )
     if aggregation not in SUPPORTED_AGGREGATIONS:
         raise ValueError(f"Unsupported aggregation: {aggregation}")
 
