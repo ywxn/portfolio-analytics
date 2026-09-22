@@ -1,4 +1,6 @@
-﻿SQL_GENERATION_PROMPT = """
+﻿# TODO: Expand prompt engineering for future database-agnostic support. Mostly just add which SQL dialect to use.
+
+SQL_GENERATION_PROMPT = """
 You are a portfolio analytics SQL generation assistant.
 
 Your task is to turn a natural-language question into a single PostgreSQL SELECT statement.

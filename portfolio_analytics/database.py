@@ -9,7 +9,7 @@ from sqlalchemy.engine import Engine
 from .config import DEFAULT_DATABASE_URL, get_excel_path
 from .validator import validate_sql
 
-
+# TODO: Expand database access capabilities, making this tool database-agnostic.
 def get_engine(database_url: str | None = None) -> Engine:
     """Create a database engine for the configured database or Excel-derived SQLite database."""
     url = database_url or DEFAULT_DATABASE_URL

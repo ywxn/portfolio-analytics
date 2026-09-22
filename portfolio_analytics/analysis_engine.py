@@ -57,6 +57,8 @@ class AnalysisEngine:
             raise ValueError(f"Unsupported aggregation: {plan.aggregation}")
         return plan
 
+
+    # TODO: Allow LLM-generated Python code if built-in functions are insufficient
     def run(self, df: pd.DataFrame, question: str) -> tuple[pd.DataFrame, AnalysisPlan]:
         plan = self.plan(question, [str(column) for column in df.columns])
         selected = df.copy()
