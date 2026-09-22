@@ -1,3 +1,9 @@
+"""High-level orchestration for natural-language portfolio analysis.
+
+This module composes schema introspection, SQL generation, validation, and
+pandas post-processing into a single user-facing API.
+"""
+
 from __future__ import annotations
 
 import time
@@ -107,6 +113,9 @@ class PortfolioAnalyzer:
             raise ValueError("A natural-language question is required.")
 
         started = time.perf_counter()
+        # Prefer an explicitly configured database, but fall back to an in-memory
+        # Excel-backed database for local or demo workflows where no database URL is
+        # configured.
         engine = (
             load_excel_engine(self.excel_path)
             if self.excel_path or not self.database_url
@@ -190,6 +199,8 @@ class PortfolioAnalyzer:
 
         from sqlalchemy import text
 
+        # The query is intentionally built with safe identifier quoting so the
+        # user can filter on arbitrary column names without creating malformed SQL.
         with engine.connect() as connection:
             result = connection.execute(text(sql), params)
             rows = result.fetchall()

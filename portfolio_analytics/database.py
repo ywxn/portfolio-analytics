@@ -1,3 +1,5 @@
+"""Database access helpers for both configured databases and Excel-backed demos."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -20,6 +22,9 @@ def get_engine(database_url: str | None = None) -> Engine:
 
 def load_excel_engine(excel_path: str | None = None) -> Engine:
     """Load every workbook sheet into an in-memory SQLite SQL database."""
+    # The project supports workbook-based demos as a portable fallback. Each sheet
+    # is normalized into a SQL table so downstream code can query it with the same
+    # schema-driven interface used for a real database.
     path = excel_path or get_excel_path()
     if not path:
         raise ValueError("An Excel workbook path is required.")
@@ -31,6 +36,8 @@ def load_excel_engine(excel_path: str | None = None) -> Engine:
     engine = create_engine("sqlite:///:memory:", future=True)
     portfolio_frames: list[pd.DataFrame] = []
     for sheet_name in workbook.sheet_names:
+        # Sheet names are converted into SQL-safe identifiers so they can be used
+        # as table names without collision or quoting issues in SQLite.
         table_name = str(sheet_name).strip().lower().replace(" ", "_")
         frame = pd.read_excel(workbook, sheet_name=sheet_name)
         frame.columns = [
@@ -45,6 +52,9 @@ def load_excel_engine(excel_path: str | None = None) -> Engine:
         portfolio_frames.append(portfolio_frame)
 
     if portfolio_frames:
+        # The workbook may contain several portfolio sheets; this aggregate table
+        # gives the rest of the app a single, consistent table for cross-portfolio
+        # questions while preserving per-sheet context in the source tables.
         pd.concat(portfolio_frames, ignore_index=True, sort=False).to_sql(
             "portfolio", engine, index=False, if_exists="replace"
         )

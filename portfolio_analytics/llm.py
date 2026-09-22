@@ -1,4 +1,10 @@
-﻿from __future__ import annotations
+﻿"""Anthropic-backed helpers for SQL generation and structured analysis planning.
+
+The LLM is treated as a content-generation component, while validation and schema
+checks remain in the Python layer to preserve a deterministic execution path.
+"""
+
+from __future__ import annotations
 
 import json
 import os
@@ -75,6 +81,9 @@ def _get_client() -> Any:
 
 def _clean_sql(text: str) -> str:
     """Clean common formatting artifacts from an LLM SQL response."""
+    # Anthropic sometimes wraps responses in Markdown fences or adds a short
+    # preamble before the actual SELECT statement. We strip these wrappers to keep
+    # downstream validation deterministic.
     sql = text.strip()
     match = re.fullmatch(
         r"```(?:sql|postgresql)?\s*(.*?)\s*```",
@@ -101,6 +110,9 @@ def _collect_text_blocks(response: Any) -> list[str]:
 
 def _parse_analysis_plan(text: str) -> dict[str, object]:
     """Parse JSON plans even when the model adds a JSON fence or a short intro."""
+    # The analysis planner is instructed to emit pure JSON, but model output can
+    # still be wrapped in fences or padded with explanatory text. This fallback
+    # keeps the parser robust without broadening the app's accepted input.
     content = text.strip()
     fenced = re.fullmatch(
         r"```(?:json)?\s*(.*?)\s*```",

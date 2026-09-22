@@ -1,3 +1,5 @@
+"""Reusable dataframe aggregation helpers for portfolio analytics questions."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -29,6 +31,7 @@ def pivot(
     values: str | list[str] | None = None,
     aggfunc: Aggregation = "sum",
 ) -> pd.DataFrame:
+    """Pivot a dataframe using pandas' table-style aggregation semantics."""
     if df.empty:
         return df.copy()
     return df.pivot_table(
@@ -46,16 +49,19 @@ def summarize_by(
     metric: str,
     aggfunc: str = "sum",
 ) -> pd.DataFrame:
+    """Group rows by a dimension and aggregate a single metric for each group."""
     if isinstance(by, str):
         by = [by]
     return df.groupby(by, dropna=False)[metric].agg(aggfunc).reset_index()
 
 
 def top_n(df: pd.DataFrame, column: str, n: int = 10) -> pd.DataFrame:
+    """Return the largest n rows for a metric column without mutating the input."""
     return df.nlargest(n, column).copy()
 
 
 def bottom_n(df: pd.DataFrame, column: str, n: int = 10) -> pd.DataFrame:
+    """Return the smallest n rows for a metric column without mutating the input."""
     return df.nsmallest(n, column).copy()
 
 

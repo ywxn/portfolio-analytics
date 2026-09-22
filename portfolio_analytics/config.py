@@ -1,3 +1,9 @@
+"""Runtime configuration for the portfolio analytics application.
+
+The project prefers environment variables for deployment-specific values, but it
+still falls back to checked-in defaults for local development and demo usage.
+"""
+
 from __future__ import annotations
 
 import os
@@ -6,6 +12,8 @@ from typing import Any
 
 import yaml
 
+# Read environment settings once at import time so the application behaves
+# consistently for the lifetime of a single process.
 DEFAULT_DATABASE_URL = os.getenv("PORTFOLIO_DB_URL", "")
 DEFAULT_EXCEL_PATH = os.getenv(
     "PORTFOLIO_EXCEL_PATH",
@@ -23,7 +31,10 @@ METADATA_PATH = METADATA_DIR / "portfolio.yaml"
 
 
 def load_metadata(path: str | Path | None = None) -> dict[str, Any]:
+    """Load the portfolio metadata from the preferred project path or legacy file."""
     candidate = Path(path) if path else METADATA_PATH
+    # Older project layouts kept metadata at the repository root, so the loader
+    # falls back to that file when the newer metadata directory is absent.
     if not candidate.exists() and LEGACY_METADATA_PATH.exists():
         candidate = LEGACY_METADATA_PATH
     if not candidate.exists():

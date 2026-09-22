@@ -1,3 +1,5 @@
+"""Utilities for introspecting database schema into prompt-friendly metadata."""
+
 from __future__ import annotations
 
 from typing import Any, Mapping
@@ -23,6 +25,7 @@ def get_schema(engine) -> dict[str, dict[str, Any]]:
 
 
 def format_schema_for_prompt(schema: Mapping[str, Any] | None) -> str:
+    """Flatten schema metadata into a compact string for LLM prompts."""
     if not schema:
         return ""
 

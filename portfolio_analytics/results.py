@@ -7,6 +7,8 @@ import pandas as pd
 
 @dataclass
 class AnalysisResult:
+    """Container for the outcome of a natural-language analytics request."""
+
     question: str
     sql: str
     data: pd.DataFrame

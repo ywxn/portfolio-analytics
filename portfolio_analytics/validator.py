@@ -1,3 +1,5 @@
+"""SQL validation utilities used as the safety gate before query execution."""
+
 from __future__ import annotations
 
 import sqlglot
@@ -17,6 +19,9 @@ def validate_sql(sql: str) -> bool:
     if not statements:
         raise ValueError("SQL contains no statements.")
 
+    # The application treats SQL generation as a convenience layer, not a trust
+    # boundary. AST inspection blocks writes and schema-altering statements even
+    # when they might otherwise parse successfully.
     forbidden = (
         exp.Insert,
         exp.Update,
