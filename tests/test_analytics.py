@@ -1,12 +1,12 @@
 import pandas as pd
 
-from demo import (
+from portfolio_analytics.dataframe_operations import (
     aggregate_dataframe,
     limit_dataframe,
-    run_dataframe_operations,
     sort_dataframe,
 )
-from portfolio_analytics.analytics import pivot, summarize_by, top_n
+from portfolio_analytics.dataframe_operations import pivot, summarize_by, top_n
+from demo import run_dataframe_operations
 
 
 def test_summarize_by_and_top_n():

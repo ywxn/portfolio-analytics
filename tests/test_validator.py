@@ -1,6 +1,6 @@
 import pytest
 
-from validator import validate_sql
+from portfolio_analytics.validator import validate_sql
 
 
 def test_validate_sql_allows_select_with_union_and_cte():

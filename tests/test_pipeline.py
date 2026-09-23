@@ -1,9 +1,9 @@
 import pandas as pd
 import pytest
 
-from analysis import blog_query, run_pipeline
-from llm import generate_sql
-from validator import validate_sql
+from portfolio_analytics.query_pipeline import execute_query_pipeline, run_pipeline
+from portfolio_analytics.llm import generate_sql
+from portfolio_analytics.validator import validate_sql
 
 
 def test_validate_sql_allows_select_only():
@@ -24,7 +24,7 @@ def test_validate_sql_rejects_mutation():
 
 def test_generate_sql_requires_api_key(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.setattr("llm.ANTHROPIC_API_KEY", None)
+    monkeypatch.setattr("portfolio_analytics.llm.ANTHROPIC_API_KEY", None)
     with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
         generate_sql("Show portfolio values", "Table: portfolio", "")
 
@@ -45,7 +45,7 @@ def test_pipeline_supports_aggregation_and_empty_result(tmp_path, monkeypatch):
             return "SELECT portfolio_name, market_value FROM portfolio WHERE portfolio_name = 'Missing'"
         return "SELECT sector, SUM(market_value) AS total_market_value FROM portfolio GROUP BY sector"
 
-    monkeypatch.setattr("analysis.generate_sql", fake_generate_sql)
+    monkeypatch.setattr("portfolio_analytics.query_pipeline.generate_sql", fake_generate_sql)
 
     result = run_pipeline(
         "What is the total market value by sector?",
@@ -68,7 +68,7 @@ def test_pipeline_supports_ranked_results(tmp_path, monkeypatch):
         ).to_excel(writer, sheet_name="portfolio", index=False)
 
     monkeypatch.setattr(
-        "analysis.generate_sql",
+        "portfolio_analytics.query_pipeline.generate_sql",
         lambda question, schema, metadata: "SELECT portfolio_name, market_value FROM portfolio ORDER BY market_value DESC LIMIT 1",
     )
     result = run_pipeline(
@@ -88,11 +88,11 @@ def test_run_pipeline_reads_excel_and_returns_sql_and_dataframe(tmp_path, monkey
         ).to_excel(writer, sheet_name="Portfolio", index=False)
 
     monkeypatch.setattr(
-        "analysis.generate_sql",
+        "portfolio_analytics.query_pipeline.generate_sql",
         lambda question, schema, metadata: "SELECT portfolio_name, market_value FROM portfolio ORDER BY market_value DESC",
     )
 
-    result = blog_query(
+    result = execute_query_pipeline(
         "Show portfolio values",
         metadata={"business_metrics": {"market_value": "Current value"}},
         excel_path=str(workbook_path),
@@ -111,7 +111,7 @@ def test_run_pipeline_returns_dataframe_from_excel(tmp_path, monkeypatch):
         ).to_excel(writer, sheet_name="portfolio", index=False)
 
     monkeypatch.setattr(
-        "analysis.generate_sql",
+        "portfolio_analytics.query_pipeline.generate_sql",
         lambda question, schema, metadata: "SELECT portfolio_name, market_value FROM portfolio",
     )
     question = "What is the total value by portfolio name?"

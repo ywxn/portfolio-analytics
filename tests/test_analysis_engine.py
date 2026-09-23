@@ -57,3 +57,30 @@ def test_analysis_engine_supports_pivot(monkeypatch):
 
     assert "US" in result.columns
     assert "EU" in result.columns
+
+
+def test_analysis_engine_returns_highest_group_for_top_question(monkeypatch):
+    monkeypatch.setattr(
+        "portfolio_analytics.llm.generate_analysis_plan",
+        lambda question, columns, metadata: {
+            "dimensions": ["state"],
+            "metric": "portfolio_value",
+            "aggregation": "sum",
+            "pivot_index": [],
+            "pivot_columns": [],
+            "limit": 1,
+            "filters": {},
+        },
+    )
+    data = pd.DataFrame(
+        {
+            "state": ["Andhra Pradesh", "Telangana", "Telangana"],
+            "portfolio_value": [349, 900, 652],
+        }
+    )
+
+    result, _ = AnalysisEngine().run(data, "What is the top state by value?")
+
+    assert result.to_dict("records") == [
+        {"state": "Telangana", "portfolio_value": 1552}
+    ]
