@@ -11,6 +11,8 @@ import os
 import re
 from typing import Any
 
+import yaml
+
 try:
     from anthropic import Anthropic
 except ModuleNotFoundError:  # pragma: no cover - optional dependency path
@@ -64,19 +66,20 @@ Do not rely on this prompt as the application's security boundary.
 """.strip()
 
 
-def _get_api_key() -> str:
+def _get_api_key(purpose: str = "LLM generation") -> str:
     api_key = ANTHROPIC_API_KEY or os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY is required for SQL generation.")
+        raise RuntimeError(f"ANTHROPIC_API_KEY is required for {purpose}.")
     return api_key
 
 
 def _get_client() -> Any:
+    api_key = _get_api_key()
     if Anthropic is None:
         raise RuntimeError(
             "The 'anthropic' package is not installed. Install the project dependencies before using LLM features."
         )
-    return Anthropic(api_key=_get_api_key())
+    return Anthropic(api_key=api_key)
 
 
 def _clean_sql(text: str) -> str:
@@ -135,6 +138,95 @@ def _parse_analysis_plan(text: str) -> dict[str, object]:
     return plan
 
 
+METADATA_INFERENCE_PROMPT = """
+You are a data catalog assistant. Infer useful business metadata for exactly one
+database table from its column definitions and a small sample of rows.
+
+Return only valid JSON with this shape:
+{{
+  "description": "short table description",
+  "columns": ["column_name", ...],
+    "dimensions": {{"name": {{"description": "..."}}}},
+    "metrics": {{"name": {{"description": "...", "column": "column_name", "aggregation": "sum"}}}},
+    "synonyms": {{"business phrase": "column_name"}}
+}}
+
+Use only columns provided in the input. Keep the original column names in
+columns. Add dimensions and metrics only when their meaning is reasonably
+supported by the sample or column name. Do not invent relationships or values.
+The result must describe only this table, not a whole database.
+
+Table name: {table_name}
+Column definitions: {columns}
+Available database schema and relationships:
+{schema}
+Sample rows:
+{sample}
+""".strip()
+
+
+def _parse_metadata(text: str) -> dict[str, Any]:
+    """Parse a metadata object from a structured LLM response."""
+    content = text.strip()
+    fenced = re.fullmatch(
+        r"```(?:json|yaml)?\s*(.*?)\s*```",
+        content,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if fenced:
+        content = fenced.group(1).strip()
+
+    try:
+        metadata = json.loads(content)
+    except json.JSONDecodeError as json_error:
+        try:
+            metadata = yaml.safe_load(content)
+        except yaml.YAMLError:
+            object_start = content.find("{")
+            if object_start < 0:
+                raise json_error
+            metadata, _ = json.JSONDecoder().raw_decode(content[object_start:])
+
+    if not isinstance(metadata, dict):
+        raise ValueError("Inferred metadata must be a JSON object.")
+    return metadata
+
+
+def generate_metadata(
+    table_name: str, columns: str, sample: str, schema: str = ""
+) -> dict[str, Any]:
+    """Infer metadata for one table through the Anthropic API."""
+    if not table_name or not table_name.strip():
+        raise ValueError("A table name is required to infer metadata.")
+    if not columns or not columns.strip():
+        raise ValueError("Column definitions are required to infer metadata.")
+    if not sample or not sample.strip():
+        raise ValueError("A data sample is required to infer metadata.")
+
+    try:
+        client = _get_client()
+        response = client.messages.create(
+            model=ANTHROPIC_MODEL,
+            max_tokens=DEFAULT_MAX_TOKENS,
+            system="Return only valid JSON metadata for the requested table.",
+            messages=[
+                {
+                    "role": "user",
+                    "content": METADATA_INFERENCE_PROMPT.format(
+                        table_name=table_name.strip(),
+                        columns=columns.strip(),
+                        schema=(schema or "").strip(),
+                        sample=sample.strip(),
+                    ),
+                }
+            ],
+        )
+        content = "".join(_collect_text_blocks(response))
+        return _parse_metadata(content)
+    except Exception as error:
+        raise RuntimeError(f"Metadata inference failed: {error}") from error
+
+
 def generate_sql(question: str, schema: str, metadata: str) -> str:
     """Generate a read-only PostgreSQL SELECT query from a natural-language question."""
     cleaned_question = (question or "").strip()
@@ -172,7 +264,9 @@ ANALYSIS_PLAN_PROMPT = """
 You are a portfolio analysis planner. Return only valid JSON with these keys:
 dimensions (array of column names), metric (column name or null), aggregation
 (sum, prod, mean, median, min, max, count, std, var, or size), pivot_index
-(array), pivot_columns (array), limit (integer or null), and filters (object).
+(array), pivot_columns (array), limit (integer or null), sort_by (column name or
+null), ascending (boolean), and filters (object). For top/bottom or ranked
+questions, sort by the aggregated metric and set ascending accordingly.
 Use only the available columns. Use pivot_index and pivot_columns for pivot or
 cross-tab questions. Use multiple dimensions for multi-dimensional breakdowns.
 
@@ -217,4 +311,9 @@ def generate_analysis_plan(
         raise RuntimeError(f"Analysis planning failed: {error}") from error
 
 
-__all__ = ["generate_sql", "generate_analysis_plan", "SYSTEM_PROMPT"]
+__all__ = [
+    "generate_sql",
+    "generate_analysis_plan",
+    "generate_metadata",
+    "SYSTEM_PROMPT",
+]

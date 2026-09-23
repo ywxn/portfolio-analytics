@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine, text
 
-from schema import format_schema_for_prompt, get_schema
+from portfolio_analytics.schema import format_schema_for_prompt, get_schema
 
 
 def test_get_schema_discovers_primary_keys_and_types():

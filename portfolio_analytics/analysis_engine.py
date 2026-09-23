@@ -5,8 +5,9 @@ from typing import Any, Mapping, cast
 
 import pandas as pd
 
-from .analytics import SUPPORTED_AGGREGATIONS, analyze_dataframe
+from .dataframe_operations import SUPPORTED_AGGREGATIONS, analyze_dataframe
 from . import llm
+from .metadata_catalog import format_metadata_for_prompt
 
 
 @dataclass
@@ -19,6 +20,8 @@ class AnalysisPlan:
     pivot_index: list[str] = field(default_factory=list)
     pivot_columns: list[str] = field(default_factory=list)
     limit: int | None = None
+    sort_by: str | None = None
+    ascending: bool = True
     filters: dict[str, Any] = field(default_factory=dict)
 
 
@@ -29,7 +32,8 @@ class AnalysisEngine:
         self.metadata = metadata or {}
 
     def plan(self, question: str, columns: list[str]) -> AnalysisPlan:
-        raw_plan = llm.generate_analysis_plan(question, columns, str(self.metadata))
+        metadata_text = format_metadata_for_prompt(self.metadata, question)
+        raw_plan = llm.generate_analysis_plan(question, columns, metadata_text)
         plan = AnalysisPlan(
             dimensions=list(cast(list[str], raw_plan.get("dimensions", []))),
             metric=cast(str | None, raw_plan.get("metric")),
@@ -37,6 +41,8 @@ class AnalysisEngine:
             pivot_index=list(cast(list[str], raw_plan.get("pivot_index", []))),
             pivot_columns=list(cast(list[str], raw_plan.get("pivot_columns", []))),
             limit=cast(int | None, raw_plan.get("limit")),
+            sort_by=cast(str | None, raw_plan.get("sort_by")),
+            ascending=bool(raw_plan.get("ascending", True)),
             filters=dict(cast(dict[str, Any], raw_plan.get("filters", {}))),
         )
         unknown = [
@@ -46,6 +52,7 @@ class AnalysisEngine:
                 plan.metric,
                 *plan.pivot_index,
                 *plan.pivot_columns,
+                plan.sort_by,
             ]
             if column and column not in columns
         ]
@@ -61,6 +68,14 @@ class AnalysisEngine:
     # TODO: Allow LLM-generated Python code if built-in functions are insufficient
     def run(self, df: pd.DataFrame, question: str) -> tuple[pd.DataFrame, AnalysisPlan]:
         plan = self.plan(question, [str(column) for column in df.columns])
+        sort_by = plan.sort_by
+        ascending = plan.ascending
+        if sort_by is None and plan.limit and plan.metric and plan.dimensions:
+            question_lower = question.lower()
+            if any(term in question_lower for term in ("top", "highest", "largest", "most")):
+                sort_by, ascending = plan.metric, False
+            elif any(term in question_lower for term in ("bottom", "lowest", "smallest", "least")):
+                sort_by, ascending = plan.metric, True
         selected = df.copy()
         for column, expected in plan.filters.items():
             if column not in selected.columns:
@@ -78,6 +93,8 @@ class AnalysisEngine:
                 pivot_index=plan.pivot_index,
                 pivot_columns=plan.pivot_columns,
                 limit=plan.limit,
+                sort_by=sort_by,
+                ascending=ascending,
             ),
             plan,
         )

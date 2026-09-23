@@ -4,7 +4,7 @@ import argparse
 from typing import Any
 
 from portfolio_analytics import PortfolioAnalyzer
-from config import validate_runtime_config
+from portfolio_analytics.config import validate_runtime_config
 
 
 def parse_args() -> argparse.Namespace:

@@ -5,48 +5,11 @@ from typing import Any
 import pandas as pd
 
 from portfolio_analytics import PortfolioAnalyzer
-
-
-def aggregate_dataframe(
-    df: pd.DataFrame,
-    by: str | list[str] | None = None,
-    metric: str | None = None,
-    aggfunc: str = "sum",
-) -> pd.DataFrame:
-    """Aggregate a dataframe by one or more grouping columns."""
-    if metric is None:
-        raise ValueError("A metric column is required for aggregation.")
-    if metric not in df.columns:
-        raise ValueError(f"Unknown metric column: {metric}")
-
-    if by is None:
-        return pd.DataFrame({metric: [df[metric].agg(aggfunc)]})
-
-    group_columns = [by] if isinstance(by, str) else list(by)
-    unknown = [column for column in group_columns if column not in df.columns]
-    if unknown:
-        raise ValueError(f"Unknown group columns: {', '.join(unknown)}")
-    return (
-        df.groupby(group_columns, dropna=False, sort=False)[metric]
-        .agg(aggfunc)
-        .reset_index()
-    )
-
-
-def sort_dataframe(
-    df: pd.DataFrame, column: str, ascending: bool = False
-) -> pd.DataFrame:
-    """Sort a dataframe by a single column."""
-    if column not in df.columns:
-        raise ValueError(f"Unknown sort column: {column}")
-    return df.sort_values(by=column, ascending=ascending).reset_index(drop=True)
-
-
-def limit_dataframe(df: pd.DataFrame, rows: int = 10) -> pd.DataFrame:
-    """Limit rows shown in the dataframe."""
-    if rows < 1:
-        raise ValueError("Row limit must be at least 1.")
-    return df.head(rows).copy()
+from portfolio_analytics.dataframe_operations import (
+    aggregate_dataframe,
+    limit_dataframe,
+    sort_dataframe,
+)
 
 
 def _print_tables(analyzer: PortfolioAnalyzer) -> dict[str, list[str]]:
@@ -84,11 +47,7 @@ def _prompt_filters() -> dict[str, Any]:
         filters[column] = value
 
 
-def run_dataframe_operations(
-    analyzer: PortfolioAnalyzer | None,
-    df: pd.DataFrame,
-) -> pd.DataFrame:
-    """Allow a user to chain dataframe transforms and optional AI analysis."""
+def run_dataframe_operations(analyzer: Any, df: pd.DataFrame) -> pd.DataFrame:
     current = df.copy()
     while True:
         print("\nCurrent dataframe operations:")
@@ -99,7 +58,6 @@ def run_dataframe_operations(
         print("  5. Show current dataframe")
         print("  6. Done")
         choice = input("Choice: ").strip().lower()
-
         try:
             if choice == "1":
                 group_input = input(
@@ -130,9 +88,7 @@ def run_dataframe_operations(
                 print(current.to_string(index=False))
             elif choice == "4":
                 if analyzer is None:
-                    raise ValueError(
-                        "AI analysis requires a PortfolioAnalyzer instance."
-                    )
+                    raise ValueError("AI analysis requires a PortfolioAnalyzer instance.")
                 question = input("Analysis question: ").strip()
                 if not question:
                     raise ValueError("An analysis question is required.")
@@ -239,7 +195,7 @@ def main() -> None:
             elif choice == "3":
                 _print_tables(analyzer)
             elif choice in {"q", "quit", "exit"}:
-                print("Goodbye.")
+                print("Exiting.")
                 return
             else:
                 print("Choose 1, 2, 3, or q.")

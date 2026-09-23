@@ -1,6 +1,6 @@
-from .analyzer import PortfolioAnalyzer
+from .portfolio_analyzer import PortfolioAnalyzer
 from .analysis_engine import AnalysisEngine, AnalysisPlan
-from .analytics import analyze_dataframe
+from .dataframe_operations import analyze_dataframe
 from .metrics import difference, growth, percent_of_total, ratio
 from .results import AnalysisResult
 
