@@ -12,7 +12,7 @@ def parse_args() -> argparse.Namespace:
         description="Run a natural-language portfolio analytics query."
     )
     parser.add_argument(
-        "question", nargs="*", help="The question to convert into SQL and execute."
+        "question", nargs="*", help="The question to convert into SQL and execute." # usage: python main.py "What is the total value by portfolio name?"
     )
     parser.add_argument(
         "--preview",
